@@ -9,6 +9,7 @@ let package = Package(
             name: "netBee",
             path: "Sources/netBee",
             exclude: ["Info.plist"],
+            resources: [.copy("Assets/AppIcon.icns")],
             linkerSettings: [
                 .linkedFramework("SystemConfiguration"),
                 .linkedFramework("Network"),
