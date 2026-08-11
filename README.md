@@ -1,190 +1,283 @@
 # 🐝 netBee
 
-**A native macOS network monitor** — per-interface bandwidth sparklines, per-process
-TCP/UDP connections, interface details, and rolling history — displayed in a sleek
-dark dashboard with a live menu bar bandwidth indicator.
+> **From the minds of Daneyand & IBM's Bob**
+> `daneyand@ibm.com`
 
-Built with pure Swift / SwiftUI. No third-party dependencies. macOS 13+ required.
+A native macOS network-monitoring app that lives in your menu bar.  
+Zero dependencies. Pure Swift + SwiftUI. Requires macOS 13 Ventura or later.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Building from Source](#building-from-source)
+- [Running the Tests](#running-the-tests)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Scripts Reference](#scripts-reference)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
+
+netBee is a lightweight, always-on network monitor that sits in the macOS menu bar and gives you an instant read on everything happening on your network interfaces — bandwidth, connections, latency, and more — without ever sending a single byte of your data anywhere.
+
+The tray icon displays a live dual sparkline (receive ↓ green / transmit ↑ blue) so you can see network activity at a glance without opening the dashboard. Left-click opens the six-tab dashboard; right-click shows a context menu.
 
 ---
 
 ## Features
 
-| Category | What you get |
+| Feature | Detail |
 |---|---|
-| **Bandwidth** | Per-interface ↓↑ sparklines with 2-minute and 10-minute rolling history |
-| **Combined view** | Total bandwidth across all interfaces on the Overview tab |
-| **Connections** | Live table: process name · protocol · TCP state · remote endpoint · RX/TX bytes |
-| **Connection filter** | Search by process name or IP; filter by TCP / TCP6 / UDP; sort by bytes or name |
-| **Interfaces** | All BSD interfaces with IPv4/IPv6 addresses, MTU, packet counters, error counts |
-| **Menu bar** | Live dual sparkline (↓ green / ↑ blue) + byte-rate label — always at a glance |
-| **Time windows** | Toggle between **2m** and **10m** rolling history on every chart |
-| **1-second updates** | Interface sampling at 1 Hz; connection table refreshed every 2 seconds |
+| **Menu bar sparkline** | Live dual RX/TX sparkline icon updated every second. Solid black background, colour-coded green/blue lines, byte-rate label. |
+| **Overview tab** | Combined bandwidth sparkline across all interfaces + per-interface mini-cards + connection summary counts. 2 m / 10 m time window toggle. |
+| **Bandwidth tab** | Per-interface bandwidth cards showing live RX/TX rates, IPv4 address, dual sparkline history, and cumulative counters (total bytes in/out, errors, MTU). |
+| **Connections tab** | Searchable, filterable live table of all open TCP/UDP sockets. Shows process name, protocol badge, TCP state, remote endpoint, and per-socket RX/TX byte counters. Sort by bytes or process name. Filter by TCP / TCP6 / UDP. |
+| **Interfaces tab** | Expandable detail cards for every network interface: IPv4, IPv6, MTU, packets in/out, bytes in/out, errors. Expandable chevron reveals the full detail set. |
+| **Latency tab** | Per-interface gateway ping (ICMP via `/sbin/ping`) every 5 seconds. Shows current RTT, avg/min/max, reply ratio, and a rolling sparkline. Colour-coded quality bands: green < 20 ms · yellow < 80 ms · amber < 200 ms · red ≥ 200 ms. |
+| **About tab** | Animated 60 fps star-network canvas (orbiting stars + connecting edges + hex grid). Live mini-graphs: bandwidth sparkline, connection donut, latency bars. No scrolling. |
+| **Zero data exfiltration** | All data comes from local kernel APIs (`getifaddrs`, `libproc`, `netstat`, `ping`). Nothing is sent to any server. |
+| **No third-party dependencies** | Only Apple frameworks: Foundation, AppKit, SwiftUI, Combine, SystemConfiguration, Network. |
 
 ---
 
-## Quick start
+## Screenshots
 
-```bash
-git clone https://github.com/007Style/netBee.git
-cd netBee
-swift run
-```
+> _Add your screenshots here after first launch._
+>
+> Suggested captures:
+> - Menu bar icon with sparkline
+> - Overview tab
+> - Bandwidth tab (with active traffic)
+> - Connections tab (filtered by TCP)
+> - Interfaces tab (expanded card)
+> - Latency tab
+> - About tab (animated canvas)
 
-Look for the dual sparkline in your menu bar. Left-click to open the dashboard.
+---
+
+## Requirements
+
+| Requirement | Minimum |
+|---|---|
+| macOS | 13.0 Ventura |
+| Swift | 5.9 |
+| Xcode | 15 (for IDE use; not required to build) |
+| Architecture | Apple Silicon or Intel |
 
 ---
 
 ## Installation
 
-### Option A — Build from source
+### Option A — DMG (recommended)
+
+1. Download `netBee-v1.0.0.dmg` from the [Releases](../../releases) page.
+2. Open the DMG and drag **netBee.app** into `/Applications`.
+3. Launch netBee from Spotlight or Launchpad.
+4. macOS will warn about an unidentified developer on first launch (the app is ad-hoc signed). To allow it:
+   - Right-click `netBee.app` → **Open** → **Open** again in the dialog.
+   - Or: **System Settings → Privacy & Security → Open Anyway**.
+
+### Option B — Zip archive
+
+Download `netBee-v1.0.0.zip`, unzip, and move `netBee.app` to `/Applications`.
+
+### Option C — Build from source
+
+See [Building from Source](#building-from-source) below.
+
+---
+
+## Building from Source
+
+### Prerequisites
+
+- macOS 13+ with Xcode Command Line Tools  
+  ```bash
+  xcode-select --install
+  ```
+
+### Clone and build
 
 ```bash
-./scripts/build.sh --release
-open .build/release/netBee
+git clone https://github.com/daneyand/netBee.git
+cd netBee
+
+# Debug build (fast, includes symbols)
+swift build
+
+# Release build (optimised)
+swift build -c release
+
+# Or use the helper script
+./scripts/build.sh             # debug
+./scripts/build.sh --release   # release
 ```
 
-### Option B — Download the app bundle
+The compiled binary lands at `.build/release/netBee` (or `.build/debug/netBee`).
 
-Grab the latest `netBee-v*.dmg` from the [Releases](https://github.com/007Style/netBee/releases)
-page, open the DMG, and drag `netBee.app` to `/Applications`.
+### Run directly
 
-### Option C — Open in Xcode
+```bash
+swift run
+```
+
+### Open in Xcode
 
 ```bash
 open Package.swift
 ```
 
-Then **Product → Run** (`⌘R`).
+Xcode will resolve the package and open the project. Select the `netBee` scheme and press **Run**.
 
----
-
-## Usage
-
-| Action | Result |
-|---|---|
-| **Left-click** tray icon | Toggle dashboard open / closed |
-| **Right-click** tray icon | Context menu: Open · About · Quit |
-| **Overview tab** | Combined bandwidth sparkline + top interfaces + connection summary |
-| **Bandwidth tab** | Per-interface sparkline cards, cumulative bytes, error counts |
-| **Connections tab** | Searchable/filterable TCP/UDP table sorted by bytes |
-| **Interfaces tab** | Expandable cards: IPs, MTU, packet in/out, errors |
-| **2m / 10m pill** | Switch sparkline time window on any tab |
-
----
-
-## Scripts
+### Build a distributable DMG
 
 ```bash
-./scripts/build.sh              # debug build
-./scripts/build.sh --release    # optimised release build
-./scripts/test.sh               # run 46-test unit suite
-./scripts/release.sh 1.0.0      # create dist/netBee.app + zip + DMG
-./scripts/lint.sh               # swift-format + SwiftLint (optional)
+./scripts/release.sh 1.0.0
+```
+
+This produces three artefacts in `dist/`:
+
+| File | Description |
+|---|---|
+| `netBee.app` | Signed `.app` bundle (drag-to-install) |
+| `netBee-v1.0.0.zip` | Zipped bundle (~316 KB) |
+| `netBee-v1.0.0.dmg` | Drag-to-install DMG with `/Applications` symlink |
+
+---
+
+## Running the Tests
+
+```bash
+# Using Swift directly
+swift test
+
+# Using the helper script (adds --parallel and a summary line)
+./scripts/test.sh
+```
+
+The test suite is entirely self-contained — it does not depend on the executable target and runs without any special permissions. It covers:
+
+| Test Suite | What it tests |
+|---|---|
+| `RollingBufferTests` | FIFO eviction, capacity clamping, suffix slicing, order preservation |
+| `FormatBytesTests` | B / KB / MB / GB boundary formatting |
+| `FormatBpsTests` | B/s / KB/s / MB/s / GB/s boundary formatting |
+| `TimeWindowTests` | Raw values, labels, windowed buffer slicing |
+| `ConnProtocolTests` | Raw values, round-trip init, invalid-string nil guard |
+| `TCPStateTests` | Raw values, round-trip init, bogus-string nil guard |
+| `InterfaceNamerPatternTests` | All prefix-pattern mappings + unknown passthrough |
+
+---
+
+## Project Structure
+
+```
+netBee/
+├── Package.swift                   SPM manifest — declares targets, platform, linked frameworks
+├── Sources/
+│   └── netBee/
+│       ├── main.swift              App entry point — AppDelegate, NSApplication bootstrap
+│       ├── Info.plist              Bundle metadata (excluded from SPM compile target)
+│       ├── Assets/
+│       │   └── AppIcon.icns        Application icon (bee graphic)
+│       │
+│       ├── Models/                 Pure data layer — no SwiftUI imports
+│       │   ├── NetworkMonitor.swift      1 Hz interface sampler (getifaddrs)
+│       │   ├── ConnectionTracker.swift   Per-process socket enumerator (libproc)
+│       │   ├── InterfaceNamer.swift      BSD name → friendly name mapper
+│       │   └── LatencyMonitor.swift      5 s gateway ping prober (/sbin/ping)
+│       │
+│       ├── Charts/
+│       │   └── SparklineChart.swift      Canvas-based sparklines (single + dual)
+│       │
+│       ├── Views/                  SwiftUI views — all @MainActor
+│       │   ├── DesignSystem.swift        DS colour tokens, MetricCard, helpers
+│       │   ├── DashboardView.swift       6-tab window + TabRouter + OverviewSection
+│       │   ├── BandwidthView.swift       Per-interface bandwidth sparklines
+│       │   ├── ConnectionsView.swift     Searchable connection table
+│       │   ├── InterfacesView.swift      Expandable interface detail cards
+│       │   ├── LatencyView.swift         Per-interface RTT with sparklines
+│       │   └── AboutView.swift           Animated canvas + live mini-graphs
+│       │
+│       └── Tray/
+│           └── TrayController.swift      NSStatusItem, icon rendering, window management
+│
+├── Tests/
+│   └── netBeeTests/
+│       └── netBeeTests.swift       46 self-contained unit tests (7 suites)
+│
+├── scripts/
+│   ├── build.sh                    Debug / release build helper
+│   ├── test.sh                     Test runner wrapper
+│   ├── release.sh                  Full release packager (app + zip + DMG)
+│   └── lint.sh                     swift-format + SwiftLint (optional tools)
+│
+├── dist/                           Build output (gitignored except .gitkeep)
+├── README.md                       This file
+├── ARCHITECTURE.md                 Deep-dive technical design document
+├── CHANGELOG.md                    Version history
+├── CONTRIBUTING.md                 Contributor guide
+└── LICENSE                         MIT License
 ```
 
 ---
 
 ## Architecture
 
-```
-Sources/netBee/
-├── main.swift                    AppDelegate + NSApplication entry point
-├── Info.plist                    Bundle metadata
-│
-├── Models/
-│   ├── NetworkMonitor.swift       Interface sampling (getifaddrs) + rolling history
-│   ├── ConnectionTracker.swift    Per-process TCP/UDP connections (libproc)
-│   └── InterfaceNamer.swift       BSD name → friendly label (networksetup + patterns)
-│
-├── Charts/
-│   └── SparklineChart.swift       SwiftUI Canvas sparklines (single + dual)
-│
-├── Views/
-│   ├── DesignSystem.swift         DS colour tokens · MetricCard · helpers
-│   ├── DashboardView.swift        5-tab main window + Overview section
-│   ├── BandwidthView.swift        Per-interface bandwidth + sparklines
-│   ├── ConnectionsView.swift      Searchable connection table
-│   ├── InterfacesView.swift       Interface detail cards
-│   └── AboutView.swift            About panel + animated hex-grid background
-│
-└── Tray/
-    └── TrayController.swift       NSStatusItem dual sparkline icon + window mgmt
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a comprehensive technical deep-dive covering:
 
-Tests/netBeeTests/
-└── netBeeTests.swift              46 self-contained unit tests
-```
-
-### Data flow
-
-```
-1 Hz Timer (NetworkMonitor)
-    │
-    └─ getifaddrs  →  InterfaceSnapshot[]  →  Δ bytes/sec  →  RollingBuffer (600 cap)
-           │
-           └─ @Published  →  SwiftUI views re-render
-
-2 s Timer (ConnectionTracker — background queue)
-    │
-    └─ libproc / netstat  →  ConnectionEntry[]
-           │
-           └─ DispatchQueue.main  →  @Published  →  SwiftUI re-render
-```
+- Data collection layer and kernel API usage
+- Threading model and actor isolation
+- SwiftUI state management and the `TabRouter` pattern
+- The `LatencyMonitor` dispatch-once safety fix
+- Tray icon rendering pipeline
+- Rolling buffer design and history windowing
 
 ---
 
-## Testing
+## Scripts Reference
+
+| Script | Usage | Description |
+|---|---|---|
+| `build.sh` | `./scripts/build.sh [--release]` | Builds debug or release binary via `swift build` |
+| `test.sh` | `./scripts/test.sh` | Runs `swift test --parallel` with summary output |
+| `release.sh` | `./scripts/release.sh [version]` | Full release: compile → bundle → sign → zip → DMG |
+| `lint.sh` | `./scripts/lint.sh` | Runs `swift-format` and `swiftlint` if installed |
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide, including:
+- Development environment setup
+- Code style conventions
+- How to add a new tab / metric
+- Pull request process
+
+Quick start:
 
 ```bash
+git clone https://github.com/daneyand/netBee.git
+cd netBee
+swift build
 swift test
 ```
-
-**46 tests · 0 failures** across 8 test suites:
-
-| Suite | Tests | Covers |
-|---|---|---|
-| `RollingBufferTests` | 8 | Eviction, capacity, ordering, edge cases |
-| `FormatBytesTests` | 7 | B / KB / MB / GB formatting |
-| `FormatBpsTests` | 5 | Bandwidth rate string formatting |
-| `TimeWindowTests` | 6 | Raw values, labels, window slicing |
-| `ConnProtocolTests` | 6 | Raw values, round-trips, invalid |
-| `TCPStateTests` | 5 | Raw values, round-trips, invalid |
-| `InterfaceNamerPatternTests` | 11 | en / utun / awdl / llw / bridge / ppp patterns |
-
----
-
-## Requirements
-
-- macOS 13 Ventura or later (Apple Silicon or Intel)
-- Xcode 15+ / Swift 5.9+ (to build from source)
-
----
-
-## Privacy
-
-netBee reads only system network counters via public macOS APIs:
-
-- `getifaddrs`        — per-interface byte / packet / error counters
-- `libproc`           — open socket metadata for your user's processes (no packet contents)
-- `networksetup`      — interface friendly names (once at launch)
-
-No packet contents are inspected. No data leaves your machine.
-No network requests. No analytics.
 
 ---
 
 ## License
 
-MIT License — see [`LICENSE`](LICENSE) for full text.
+MIT License — see [LICENSE](LICENSE) for the full text.
 
 ---
 
-## Credits
-
-<p align="center">
-  <strong>From the minds of Daneyand &amp; IBM's Bob 🐝</strong>
-</p>
-
----
-
-*netBee v0.1.0*
+*netBee v1.0.0 · From the minds of Daneyand & IBM's Bob 🐝*

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: macos-14          # Apple Silicon runner (macOS 14 Sonoma, Xcode 15)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build (debug)
+        run: swift build
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Run tests
+        run: swift test --parallel
+
+      - name: Confirm binary exists
+        run: |
+          ls -lh .build/release/netBee
+          echo "Binary size: $(du -sh .build/release/netBee | cut -f1)"

@@ -58,35 +58,52 @@ final class TrayController {
     }
 
     private func renderIcon(rxBps: Double, txBps: Double) {
-        let size    = CGSize(width: 72, height: 18)
-        let image   = NSImage(size: size)
-        image.lockFocus()
+        let w = 72, h = 18
+        let sz = CGSize(width: w, height: h)
 
-        // Background
-        NSColor.clear.setFill()
-        NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+        // Draw into a concrete bitmap rep — avoids lazy compositing and system
+        // tinting that happen with NSImage(size:flipped:drawingHandler:).
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: w, pixelsHigh: h,
+            bitsPerSample: 8, samplesPerPixel: 4,
+            hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        ) else { return }
 
-        // Sparkline — RX (green)
-        drawSparkline(values: rxHistory, color: NSColor(DS.rxGreen), in: size, yOffset: 0, height: 8)
-        // Sparkline — TX (blue) — inverted downward below centre
-        drawSparkline(values: txHistory, color: NSColor(DS.txBlue),  in: size, yOffset: 9, height: 8, flipY: true)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
-        // Text label
-        let rxStr = shortBps(rxBps)
-        let txStr = shortBps(txBps)
-        let label = "\(rxStr) \(txStr)"
+        // Solid black background
+        NSColor.black.setFill()
+        NSBezierPath.fill(NSRect(origin: .zero, size: sz))
+
+        // Sparkline — RX (green, top half)
+        drawSparkline(values: rxHistory, color: NSColor(DS.rxGreen),
+                      in: sz, yOffset: 0, height: 8)
+        // Sparkline — TX (blue, bottom half, flipped)
+        drawSparkline(values: txHistory, color: NSColor(DS.txBlue),
+                      in: sz, yOffset: 9, height: 8, flipY: true)
+
+        // Byte-rate label
+        let label = "\(shortBps(rxBps)) \(shortBps(txBps))"
         let attrs: [NSAttributedString.Key: Any] = [
             .font:            NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.80)
+            .foregroundColor: NSColor.white.withAlphaComponent(0.90)
         ]
-        let str  = NSAttributedString(string: label, attributes: attrs)
-        let rect = str.boundingRect(with: size, options: [])
-        str.draw(at: NSPoint(x: size.width - rect.width - 2,
-                             y: (size.height - rect.height) / 2))
+        let str     = NSAttributedString(string: label, attributes: attrs)
+        let strRect = str.boundingRect(with: sz, options: [])
+        str.draw(at: NSPoint(x: sz.width - strRect.width - 2,
+                             y: (sz.height - strRect.height) / 2))
 
-        image.unlockFocus()
+        NSGraphicsContext.restoreGraphicsState()
+
+        let image = NSImage(size: sz)
+        image.addRepresentation(rep)
         image.isTemplate = false
-        statusItem.button?.image = image
+        statusItem.button?.image        = image
+        statusItem.button?.imageScaling = .scaleNone
     }
 
     private func drawSparkline(values: [Double], color: NSColor, in size: CGSize,
@@ -169,21 +186,24 @@ final class TrayController {
     }
 
     private func showDashboard(tab: DashboardTab = .overview) {
+        // Drive the router first — works whether window is new or already open.
+        TabRouter.shared.activeTab = tab
+
         if window == nil {
-            let view       = DashboardView()
-            let hosting    = NSHostingView(rootView: view)
-            let w          = NSWindow(
-                contentRect:    NSRect(x: 0, y: 0, width: 640, height: 560),
+            let view    = DashboardView()
+            let hosting = NSHostingView(rootView: view)
+            let w       = NSWindow(
+                contentRect:    NSRect(x: 0, y: 0, width: 760, height: 580),
                 styleMask:      [.titled, .closable, .miniaturizable, .resizable],
                 backing:        .buffered,
                 defer:          false
             )
-            w.title               = "netBee"
-            w.contentView         = hosting
-            w.isReleasedWhenClosed = false
-            w.level               = .floating
+            w.title                      = "netBee"
+            w.contentView                = hosting
+            w.isReleasedWhenClosed       = false
+            w.level                      = .floating
             w.titlebarAppearsTransparent = true
-            w.backgroundColor     = NSColor(DS.bgPrimary)
+            w.backgroundColor            = NSColor(DS.bgPrimary)
             positionNearTray(w)
             window = w
         }

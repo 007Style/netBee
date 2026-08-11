@@ -3,6 +3,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import SwiftUI
 
+// MARK: - TabRouter
+
+/// Tiny singleton that lets TrayController drive the active tab from outside
+/// the SwiftUI view hierarchy at any time (even when the window is already open).
+final class TabRouter: ObservableObject {
+    static let shared = TabRouter()
+    @Published var activeTab: DashboardTab = .overview
+    private init() {}
+}
+
 // MARK: - Tab enum
 
 enum DashboardTab: String, CaseIterable {
@@ -10,6 +20,7 @@ enum DashboardTab: String, CaseIterable {
     case bandwidth   = "Bandwidth"
     case connections = "Connections"
     case interfaces  = "Interfaces"
+    case latency     = "Latency"
     case about       = "About"
 
     var icon: String {
@@ -18,6 +29,7 @@ enum DashboardTab: String, CaseIterable {
         case .bandwidth:   return "📶"
         case .connections: return "🔗"
         case .interfaces:  return "🔌"
+        case .latency:     return "⏱"
         case .about:       return "ℹ️"
         }
     }
@@ -26,9 +38,9 @@ enum DashboardTab: String, CaseIterable {
 // MARK: - DashboardView
 
 struct DashboardView: View {
-    @StateObject private var monitor    = NetworkMonitor.shared
+    @StateObject private var monitor     = NetworkMonitor.shared
     @StateObject private var connTracker = ConnectionTracker.shared
-    @State private var activeTab: DashboardTab = .overview
+    @StateObject private var router      = TabRouter.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,11 +54,11 @@ struct DashboardView: View {
                 tabContent
                     .padding(16)
             }
-            .frame(width: 640)
+            .frame(width: 760)
         }
         .background(DS.bgPrimary)
         .preferredColorScheme(.dark)
-        .frame(width: 640, height: 560)
+        .frame(width: 760, height: 580)
     }
 
     // MARK: - Tab bar
@@ -55,17 +67,17 @@ struct DashboardView: View {
         HStack(spacing: 0) {
             ForEach(DashboardTab.allCases, id: \.self) { tab in
                 Button {
-                    activeTab = tab
+                    router.activeTab = tab
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Text(tab.icon).font(.caption)
                         Text(tab.rawValue).font(DS.fontTitle)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .foregroundColor(activeTab == tab ? DS.beeYellow : DS.textSecondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .foregroundColor(router.activeTab == tab ? DS.beeYellow : DS.textSecondary)
                     .background(
-                        activeTab == tab
+                        router.activeTab == tab
                             ? DS.beeYellow.opacity(0.10)
                             : Color.clear
                     )
@@ -91,11 +103,12 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var tabContent: some View {
-        switch activeTab {
+        switch router.activeTab {
         case .overview:    OverviewSection()
         case .bandwidth:   BandwidthView()
         case .connections: ConnectionsView()
         case .interfaces:  InterfacesView()
+        case .latency:     LatencyView()
         case .about:       AboutView()
         }
     }

@@ -1,0 +1,2 @@
+# This file ensures the dist/ directory is tracked by git even when empty.
+# The actual build artefacts (*.app, *.zip, *.dmg) are gitignored.
